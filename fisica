@@ -1,0 +1,179 @@
+import { useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+
+type Message = {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+const AI_RESPONSES: Record<string, string> = {
+  // Thermodynamics
+  'q=m·c·Δt': 'La fórmula Q = m·c·ΔT calcula el calor sensible transferido. Donde:\n• m = masa (kg)\n• c = calor específico (J/kg·K)\n• ΔT = cambio de temperatura (K)\n\nEjemplo: Para calentar 1kg de agua (c=4186 J/kg·K) en 10K: Q = 1 × 4186 × 10 = 41,860 J',
+  'calor': 'El calor es energía en tránsito entre sistemas con diferentes temperaturas. Se mide en Joules (J) y fluye de caliente a frío. Hay dos tipos:\n• Calor sensible: cambia temperatura (Q=m·c·ΔT)\n• Calor latente: cambia fase (Q=m·L)',
+  'temperatura': 'La temperatura mide la energía cinética promedio de las partículas. Escalas:\n• Celsius (°C): punto de congelación agua = 0°C\n• Kelvin (K): escala absoluta, 0K = -273.15°C\n• Fahrenheit (°F): usado en EEUU\n\nConversiones:\nK = °C + 273.15\n°F = (°C × 9/5) + 32',
+
+  // Electrostatics
+  'coulomb': 'La Ley de Coulomb describe la fuerza entre cargas:\n\nF = k·|q₁·q₂|/r²\n\nDonde:\n• k = 8.99×10⁹ N·m²/C² (constante de Coulomb)\n• q₁, q₂ = cargas (Coulombs)\n• r = distancia (metros)\n\nLa fuerza es atractiva si las cargas tienen signos opuestos, repulsiva si son del mismo signo.',
+  'potencial': 'El potencial eléctrico (V) es la energía potencial por unidad de carga:\n\nV = k·q/r\n\nMedido en Voltios (V = J/C). Las cargas se mueven espontáneamente de mayor a menor potencial. El trabajo para mover una carga: W = q·ΔV',
+  'campo eléctrico': 'El campo eléctrico (E) es la fuerza por unidad de carga:\n\nE = k·q/r² (N/C)\n\nLas líneas de campo:\n• Salen de cargas positivas\n• Entran a cargas negativas\n• Nunca se cruzan\n• La densidad indica intensidad',
+
+  // Circuits
+  'ohm': 'La Ley de Ohm relaciona voltaje, corriente y resistencia:\n\nV = I·R\n\nDonde:\n• V = voltaje (Voltios)\n• I = corriente (Amperios)\n• R = resistencia (Ohmios, Ω)\n\nSerie: R_total = R₁ + R₂ + ...\nParalelo: 1/R_total = 1/R₁ + 1/R₂ + ...',
+  'corriente': 'La corriente eléctrica es el flujo de carga por unidad de tiempo:\n\nI = Q/t (Amperios)\n\nCC (Corriente Continua): flujo constante\nCA (Corriente Alterna): flujo sinusoidal\n\nPotencia: P = V·I = I²·R = V²/R',
+  'ac': 'La corriente alterna (AC) varía sinusoidalmente:\n\nV(t) = V_max·sin(2πft)\n\nDonde:\n• V_max = voltaje máximo\n• f = frecuencia (Hz)\n• t = tiempo (s)\n\nValor RMS (eficaz): V_rms = V_max/√2 ≈ 0.707·V_max',
+
+  // Optics
+  'snell': 'La Ley de Snell describe la refracción:\n\nn₁·sin(θ₁) = n₂·sin(θ₂)\n\nDonde:\n• n = índice de refracción\n• θ = ángulo respecto a la normal\n\nSi n₂ > n₁: el rayo se acerca a la normal\nSi n₁ > n₂: el rayo se aleja de la normal',
+  'reflexión': 'La reflexión ocurre cuando la luz rebota en una superficie:\n\nLey de reflexión: θᵢ = θᵣ\n\nReflexión interna total ocurre cuando:\n• Luz va de medio más denso a menos denso\n• Ángulo > ángulo crítico: θc = arcsin(n₂/n₁)',
+  'espectro': 'El espectro visible va de 380nm (violeta) a 780nm (rojo):\n\n• Violeta: 380-450nm\n• Azul: 450-495nm\n• Verde: 495-570nm\n• Amarillo: 570-590nm\n• Naranja: 590-620nm\n• Rojo: 620-780nm\n\nEnergia del fotón: E = hc/λ',
+
+  // General
+  'unidades': 'Unidades SI importantes en física:\n\n• Longitud: metro (m)\n• Masa: kilogramo (kg)\n• Tiempo: segundo (s)\n• Corriente: amperio (A)\n• Temperatura: kelvin (K)\n• Energía: joule (J)\n• Potencia: watt (W)\n• Carga: coulomb (C)\n• Voltaje: volt (V)',
+  'default': 'Soy tu asistente de física (Beta). Puedo ayudarte con:\n\n📚 Explicaciones de fórmulas\n🧮 Guía en cálculos\n💡 Conceptos fundamentales\n\nPregúntame sobre: temperatura, calor, Coulomb, potencial, Ohm, corriente, Snell, reflexión, espectro, etc.'
+}
+
+export default function AIPanel() {
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'assistant', content: AI_RESPONSES.default }
+  ])
+  const [input, setInput] = useState('')
+
+  const findResponse = (query: string): string => {
+    const lowerQuery = query.toLowerCase()
+
+    // Check for exact or partial matches
+    for (const [key, response] of Object.entries(AI_RESPONSES)) {
+      if (lowerQuery.includes(key.toLowerCase())) {
+        return response
+      }
+    }
+
+    // Check for common variations
+    if (lowerQuery.includes('temperatura') || lowerQuery.includes('temp')) {
+      return AI_RESPONSES.temperatura
+    }
+    if (lowerQuery.includes('calo')) {
+      return AI_RESPONSES.calor
+    }
+    if (lowerQuery.includes('fuerza') && lowerQuery.includes('elect')) {
+      return AI_RESPONSES.coulomb
+    }
+    if (lowerQuery.includes('resisten') || lowerQuery.includes('circuito')) {
+      return AI_RESPONSES.ohm
+    }
+    if (lowerQuery.includes('refrac')) {
+      return AI_RESPONSES.snell
+    }
+    if (lowerQuery.includes('reflect') || lowerQuery.includes('espejo')) {
+      return AI_RESPONSES.reflexión
+    }
+    if (lowerQuery.includes('luz') || lowerQuery.includes('color')) {
+      return AI_RESPONSES.espectro
+    }
+
+    return 'No tengo información específica sobre eso aún. Intenta preguntar sobre:\n\n• Fórmulas (Q=m·c·ΔT, Coulomb, Ohm, Snell)\n• Conceptos (temperatura, calor, potencial, corriente)\n• Unidades\n\nRecuerda que estoy en versión Beta y mis respuestas son limitadas.'
+  }
+
+  const handleSend = () => {
+    if (!input.trim()) return
+
+    const userMessage: Message = { role: 'user', content: input }
+    const response = findResponse(input)
+    const assistantMessage: Message = { role: 'assistant', content: response }
+
+    setMessages([...messages, userMessage, assistantMessage])
+    setInput('')
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
+  }
+
+  const quickQuestions = [
+    '¿Cómo aplico Q=m·c·ΔT?',
+    '¿Qué es la Ley de Coulomb?',
+    '¿Cómo funciona la Ley de Ohm?',
+    '¿Qué es la Ley de Snell?',
+  ]
+
+  return (
+    <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm h-[calc(100vh-12rem)] flex flex-col">
+      <CardHeader className="border-b border-slate-700">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-emerald-400 flex items-center gap-2">
+            Asistente IA
+            <Badge variant="outline" className="bg-emerald-900/50 text-emerald-300 border-emerald-600">
+              Beta
+            </Badge>
+          </CardTitle>
+        </div>
+        <p className="text-slate-400 text-xs mt-1">
+          Respuestas predefinidas basadas en contexto
+        </p>
+      </CardHeader>
+
+      <CardContent className="flex-1 flex flex-col p-4 overflow-hidden">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto space-y-4 mb-4">
+          {messages.map((msg, idx) => (
+            <div
+              key={idx}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-[85%] rounded-lg p-3 ${
+                  msg.role === 'user'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-slate-700 text-slate-200'
+                }`}
+              >
+                <div className="text-sm whitespace-pre-line">{msg.content}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Quick Questions */}
+        {messages.length === 1 && (
+          <div className="mb-4 space-y-2">
+            <div className="text-xs text-slate-400">Preguntas rápidas:</div>
+            <div className="grid grid-cols-1 gap-2">
+              {quickQuestions.map((q, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setInput(q)
+                    setTimeout(() => handleSend(), 100)
+                  }}
+                  className="text-left text-xs p-2 bg-slate-700/50 hover:bg-slate-700 rounded border border-slate-600 text-slate-300 transition-colors"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Input */}
+        <div className="flex gap-2">
+          <Input
+            value={input}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Pregunta sobre física..."
+            className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
+          />
+          <Button onClick={handleSend} className="bg-emerald-600 hover:bg-emerald-700">
+            Enviar
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
